@@ -1,11 +1,15 @@
 name: Oracle Cloud ARM Hunter
 
 on:
-  # Запуск за розкладом кожні 4 години (як підстраховка та постійний моніторинг)
+  # Запуск за розкладом кожні 30 хвилин (як підстраховка та постійний моніторинг)
   schedule:
-    - cron: '0 */4 * * *'
+    - cron: '*/30 * * * *'
   # Кнопка для ручного запуску з інтерфейсу GitHub Actions
   workflow_dispatch:
+
+permissions:
+  actions: write
+  contents: read
 
 # Запобігає запуску двох однакових процесів одночасно (черга без конфліктів)
 concurrency:
@@ -66,12 +70,12 @@ jobs:
           rm -rf ~/.oci
 
       - name: Trigger next run (Continuous 24/7 Loop)
-        if: steps.hunter.outputs.instance_created != 'true' && env.GH_PAT != ''
+        if: steps.hunter.outputs.instance_created != 'true'
         env:
-          GH_PAT: ${{ secrets.GH_PAT }}
-          GH_TOKEN: ${{ secrets.GH_PAT }}
+          GH_TOKEN: ${{ secrets.GH_PAT || github.token }}
           GH_REPO: ${{ github.repository }}
+          GH_REF: ${{ github.ref_name }}
         run: |
-          echo "Сервер ще не створено. Запускаємо наступний цикл без очікування..."
-          gh workflow run deploy_arm.yml --ref master -R "$GH_REPO" || true
+          echo "Сервер ще не створено. Запускаємо наступний цикл без очікування (гілка: $GH_REF)..."
+          gh workflow run deploy_arm.yml --ref "$GH_REF" -R "$GH_REPO"
 
