@@ -23,6 +23,22 @@ jobs:
     timeout-minutes: 350  # Запас до жорсткого ліміту GitHub Actions (360 хв)
 
     steps:
+      - name: Clean up old workflow runs (keep last 3)
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT || github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          echo "Перевірка старих запусків workflow..."
+          RUN_IDS=$(gh run list --workflow deploy_arm.yml --repo "$GH_REPO" --status completed --limit 100 --json databaseId --jq '.[3:][].databaseId')
+          if [ -z "$RUN_IDS" ]; then
+            echo "Старих запусків для видалення немає (зберігаємо 3 останні)."
+          else
+            for run_id in $RUN_IDS; do
+              echo "Видалення старого запуску ID: $run_id"
+              gh api -X DELETE "repos/$GH_REPO/actions/runs/$run_id" || true
+            done
+          fi
+
       - name: Checkout repository
         uses: actions/checkout@v4
 
